@@ -3,7 +3,8 @@
 #  AI이거다 / SPIKE 앱에서 이 코드를 열어 허브의 "슬롯 0"에 저장(다운로드)해 둔다.
 #  PC의 pc_gesture_start.py가 손동작을 인식하면 이 슬롯을 실행시킨다.
 #
-#  로봇: 주행 모터 E+F, 집게 C, 컬러 센서 A, 거리 센서 B
+#  로봇: 미니 멀티로버 — 주행 모터 E+F, 리프트 C, 컬러 센서 A(아래 앞), 거리 센서 B(위 앞)
+#  사탕은 리프트를 올린 채 다가가 사탕 뒤로 내려 걸고, 그대로 끌고 온다.
 #        바퀴 지름 5.6cm (1회전 17.5cm), 바퀴 간격 약 11cm
 #  매트: 사탕 매트 (가운데 로터리, 양쪽 곡선 길, 빨간 표시 2개)
 # ============================================================
@@ -12,7 +13,7 @@ from spike.control import wait_for_seconds
 
 hub = PrimeHub()
 pair = MotorPair('E', 'F')
-gripper = Motor('C')
+lift = Motor('C')
 color = ColorSensor('A')
 dist = DistanceSensor('B')
 
@@ -25,7 +26,8 @@ SAFE_CM = 10          # 거리 센서로 이 거리 안에 무언가 보이면 �
 
 # ---------- 실측해서 고치는 값 ----------
 ARC_TO_CANDY = 32     # 로터리 입구(빨간 표시) → 사탕 구역 앞까지 라인을 따라가는 거리(cm)
-REACH = 4             # 사탕 구역을 향해 돌아선 뒤 집게까지 전진하는 거리(cm)
+REACH = 6             # 사탕 구역을 향해 돌아선 뒤, 리프트 바가 사탕을 지나도록 전진하는 거리(cm)
+LIFT_DEG = 300        # 리프트 바가 바닥 ↔ 위로 움직이는 모터 각도 (기어비에 맞춰 실측)
 PATH_HOME = 115       # 로터리 입구 → 출발 박스 앞까지 곡선 길 거리(cm)
 
 
@@ -85,30 +87,33 @@ def follow_for_cm(cm, edge=LEFT):
     pair.stop()
 
 
-def grab():
-    gripper.run_for_degrees(-90, 50)
+def lift_up():
+    """바를 올린다 — 사탕 위를 지나갈 수 있고, 걸려 있던 사탕은 놓인다"""
+    lift.run_for_degrees(-LIFT_DEG, 40)
 
 
-def release():
-    gripper.run_for_degrees(90, 50)
+def lift_down():
+    """바를 내린다 — 바와 로봇 사이에 사탕이 있으면 걸려서 끌려온다"""
+    lift.run_for_degrees(LIFT_DEG, 40)
 
 
-# ---------- 미션: A에서 출발 → 사탕 A 가져와 → A로 복귀 ----------
+# ---------- 미션: A에서 출발 → 사탕 A 걸어 끌고 → A로 복귀 ----------
 def mission_candy_A():
     hub.light_matrix.show_image('ARROW_N')
     hub.speaker.beep(84, 0.3)                      # 출발 신호음
 
+    lift_up()                                      # 0. 바를 올린 채 출발 (사탕 위를 지나갈 수 있게)
     follow_until_red(count=1, edge=LEFT)           # 1. 곡선 길을 따라 로터리 입구까지
     follow_for_cm(ARC_TO_CANDY, edge=LEFT)         # 2. 왼쪽 가장자리 → 시계 방향으로 사탕 A 앞까지
     turn(-90)                                      # 3. 사탕 구역 쪽(바깥)으로 돌아선다
-    pair.move(REACH, 'cm', speed=20)               # 4. 집게 안으로 사탕이 들어오게 전진
-    grab()                                         # 5. 집기
+    pair.move(REACH, 'cm', speed=20)               # 4. 바가 사탕을 지나 사탕이 바와 로봇 사이에 오게 전진
+    lift_down()                                    # 5. 바를 내려 사탕을 건다
     hub.light_matrix.show_image('HAPPY')
-    pair.move(-REACH, 'cm', speed=20)              # 6. 후진해서 라인으로 복귀
+    pair.move(-REACH, 'cm', speed=20)              # 6. 사탕을 끌고 후진해서 라인으로 복귀
     turn(-90)                                      # 7. 돌아갈 방향(반시계)으로
     follow_until_red(count=1, edge=RIGHT)          # 8. 오른쪽 가장자리 → 입구로 빠져나온다
-    follow_for_cm(PATH_HOME, edge=RIGHT)           # 9. 곡선 길을 따라 출발 박스까지
-    release()                                      # 10. 사탕 내려놓기
+    follow_for_cm(PATH_HOME, edge=RIGHT)           # 9. 곡선 길을 따라 출발 박스까지 끌고 간다
+    lift_up()                                      # 10. 바를 올려 사탕을 놓는다
     hub.light_matrix.show_image('YES')
     hub.speaker.beep(96, 0.5)
 

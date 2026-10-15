@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="SPIKE Prime 사탕 매트 위에서 라인 따라가기·회전·집게 명령을 쌓아 실행해 보는 자율주행 사탕 가져오기 시뮬레이터">
+<meta name="description" content="SPIKE Prime 미니 멀티로버로 사탕 매트 위에서 라인 따라가기·회전·리프트 명령을 쌓아 실행해 보는 자율주행 사탕 끌고 오기 시뮬레이터">
 <style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px;font-family:system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>사탕 로봇 시뮬레이터</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -116,9 +116,9 @@ textarea#notes{width:100%;min-height:96px;border:1px solid var(--line);border-ra
   <div>
     <div class="eyebrow">SPIKE Prime · Python · 자율주행 사탕 가져오기</div>
     <h1>사탕 로봇 시뮬레이터</h1>
-    <p class="sub">코딩하기 전에 로봇이 어떻게 움직일지 먼저 그려 봅니다. 명령을 순서대로 쌓고 실행하면, 컬러 센서(A) 하나로 라인을 따라가며 사탕을 가져오는 과정을 화면에서 확인할 수 있습니다.</p>
+    <p class="sub">코딩하기 전에 로봇이 어떻게 움직일지 먼저 그려 봅니다. 명령을 순서대로 쌓고 실행하면, 컬러 센서(A) 하나로 라인을 따라가고, 리프트(C)로 사탕을 걸어 끌고 오는 과정을 화면에서 확인할 수 있습니다.</p>
   </div>
-  <div class="hint">바퀴 지름 5.6cm · 1회전 17.5cm · 바퀴 간격 11cm · 주행 모터 E+F · 집게 C · 컬러 A · 거리 B</div>
+  <div class="hint">미니 멀티로버 · 바퀴 지름 5.6cm · 1회전 17.5cm · 바퀴 간격 11cm · 주행 모터 E+F · 리프트 C · 컬러 A · 거리 B</div>
 </header>
 
 <main>
@@ -140,6 +140,7 @@ textarea#notes{width:100%;min-height:96px;border:1px solid var(--line);border-ra
         <span style="--lc:#d9402f">빨간 표시(로터리 입구)</span>
         <span style="--lc:#e9a4a4">A·B 사탕 구역</span>
         <span style="--lc:#2a8c7a">로봇 · 센서 점</span>
+        <span style="--lc:#f2b544">리프트 바 (진하면 내림)</span>
       </div>
     </div>
 
@@ -151,7 +152,7 @@ textarea#notes{width:100%;min-height:96px;border:1px solid var(--line);border-ra
         <div class="tile"><div class="k">요각 yaw</div><div class="v"><span id="rYaw">0</span><span class="u">°</span></div></div>
         <div class="tile"><div class="k">거리 센서</div><div class="v"><span id="rDist">—</span><span class="u">cm</span></div></div>
         <div class="tile"><div class="k">이동 거리</div><div class="v"><span id="rOdo">0</span><span class="u">cm</span></div></div>
-        <div class="tile"><div class="k">집게</div><div class="v"><span id="rGrip">열림</span></div></div>
+        <div class="tile"><div class="k">리프트</div><div class="v"><span id="rGrip">내림</span></div></div>
         <div class="tile"><div class="k">경과 시간</div><div class="v"><span id="rTime">0.0</span><span class="u">s</span></div></div>
         <div class="tile"><div class="k">빨간 표시 통과</div><div class="v"><span id="rRed">0</span><span class="u">회</span></div></div>
       </div>
@@ -163,11 +164,12 @@ textarea#notes{width:100%;min-height:96px;border:1px solid var(--line);border-ra
       <ol class="q">
         <li>왼쪽 가장자리를 따라가는 로봇은 로터리 입구에서 위로 갈까, 아래로 갈까? 오른쪽 가장자리면? 실행해서 확인하고 이유를 적어 보세요.</li>
         <li>로터리 입구(빨간 표시)에서 사탕 A 구역 앞까지 라인을 따라 몇 cm를 가야 할까요? 시뮬레이터의 이동 거리로 재어 보고, 실제 로봇에서도 같은지 비교하세요.</li>
-        <li>사탕을 집은 뒤 출발점으로 돌아올 때, 왜 가장자리를 반대로 바꿔야 할까요?</li>
+        <li>리프트를 올린 채 사탕에 다가가 내리면 사탕이 걸립니다. 리프트를 내린 채 다가가면 어떻게 될까요? 실행해서 확인해 보세요.</li>
+        <li>사탕을 걸고 출발점으로 돌아올 때, 왜 가장자리를 반대로 바꿔야 할까요?</li>
         <li>로터리를 한 바퀴 다 돌려면 어떤 순서로 가장자리를 바꿔야 할까요? (심화)</li>
       </ol>
       <h3 style="margin-top:14px">내 기록</h3>
-      <textarea id="notes" placeholder="예) 왼쪽 가장자리 → 로터리에서 위쪽(시계 방향)으로 들어감. 입구에서 사탕 A 앞까지 26cm."></textarea>
+      <textarea id="notes" placeholder="예) 왼쪽 가장자리 → 로터리에서 위쪽(시계 방향)으로 들어감. 리프트를 올리고 6cm 들어가서 내리면 걸림."></textarea>
       <div class="copy-row"><button id="copyNotes">기록 + 프로그램 복사</button></div>
     </div>
   </section>
@@ -180,8 +182,8 @@ textarea#notes{width:100%;min-height:96px;border:1px solid var(--line);border-ra
           <option value="">예시 미션 불러오기…</option>
           <option value="m1">M1 · A에서 출발해 빨간 표시까지</option>
           <option value="m2">M2 · 로터리 들어가 사탕 A 앞까지</option>
-          <option value="m3">M3 · 사탕 A 가져와 A로 복귀</option>
-          <option value="m4">심화 · B에서 출발해 사탕 B 가져오기</option>
+          <option value="m3">M3 · 사탕 A 끌고 A로 복귀</option>
+          <option value="m4">심화 · B에서 출발해 사탕 B 끌고 오기</option>
           <option value="m5">심화 · 로터리 한 바퀴 돌기</option>
         </select>
       </div>
@@ -189,7 +191,7 @@ textarea#notes{width:100%;min-height:96px;border:1px solid var(--line);border-ra
         <button data-add="follow"><b>▶</b>라인 따라가기</button>
         <button data-add="move"><b>↑</b>직진 (cm)</button>
         <button data-add="turn"><b>↻</b>제자리 회전 (°)</button>
-        <button data-add="grip"><b>⌒</b>집게</button>
+        <button data-add="grip"><b>⇅</b>리프트</button>
         <button data-add="wait"><b>⏱</b>기다리기</button>
       </div>
       <div class="steps" id="steps"></div>
@@ -226,7 +228,7 @@ const ZONES = {
   B: [[74, 60.5], [92, 60.5], [100, 78], [66, 78]]
 };
 const CANDY_HOME = { A: { x: 83, y: 10 }, B: { x: 83, y: 72 } };
-const ROBOT = { base: 11, wheelDia: 5.6, sensorOff: 6, gripOff: 10, w: 12, l: 15, sensorR: 0.8 };
+const ROBOT = { base: 11, wheelDia: 5.6, sensorOff: 6, gripOff: 11, w: 12, l: 15, sensorR: 0.8 };   // gripOff = 리프트 바(앞쪽)까지 거리
 const LINE_HW = 0.75;   // 라인 반폭 (1.5cm 테이프)
 const LEFT = 1, RIGHT = -1;
 
@@ -294,7 +296,7 @@ function makeState(startKey) {
   const b = BOX[startKey];
   return {   // 바퀴 축은 박스 테두리에, 센서는 라인 위에 놓고 출발
     x: b.x, y: startKey === 'A' ? b.y - BOX.half : b.y + BOX.half, th: startKey === 'A' ? -Math.PI / 2 : Math.PI / 2,
-    yaw: 0, odo: 0, t: 0, trail: [], grip: false, carrying: null,
+    yaw: 0, odo: 0, t: 0, trail: [], grip: false /* 리프트 올림 여부 */, carrying: null,
     candies: [{ ...CANDY_HOME.A, id: 'A' }, { ...CANDY_HOME.B, id: 'B' }],
     obstacles: [], pc: 0, cmd: null, running: false, done: false, msg: '', redCount: 0, onRed: false, log: [],
     lastSteer: 0
@@ -361,16 +363,19 @@ function stepSim(state, program, dt, opts = {}) {
     }
     if (s.t - cs.t0 > 90) { finished = true; s.msg = '시간 초과(라인을 놓쳤나요?)'; s.log.unshift(`${s.t.toFixed(1)}s  ! ${s.msg}`); s.running = false; s.done = true; }
   } else if (c.t === 'grip') {
+    // 리프트: 올린 채 다가가 → 사탕 뒤로 내리면 걸린다 → 끌고 간다 → 올리면 놓인다
     if (s.t - cs.t0 >= 0.6) {
-      if (c.close) {
-        s.grip = true;
-        const [gx, gy] = gripPos(s);
-        const near = s.candies.find(cd => cd !== s.carrying && Math.hypot(cd.x - gx, cd.y - gy) <= 4.5);
-        if (near) { s.carrying = near; s.log.unshift(`${s.t.toFixed(1)}s  ✓ 사탕 ${near.id} 집음`); }
-        else s.log.unshift(`${s.t.toFixed(1)}s  ✗ 집게를 닫았지만 사탕이 없음 (집게 앞 4.5cm 안에 있어야 함)`);
-      } else {
+      if (c.close) {            // 내리기
+        if (!s.grip) s.log.unshift(`${s.t.toFixed(1)}s  · 리프트가 이미 내려가 있음`);
         s.grip = false;
-        if (s.carrying) { s.log.unshift(`${s.t.toFixed(1)}s  ↓ 사탕 ${s.carrying.id} 내려놓음${inBox(s.carrying, 'A') || inBox(s.carrying, 'B') ? ' (박스 안!)' : ''}`); s.carrying = null; }
+        const [gx, gy] = gripPos(s);
+        // 바와 로봇 앞면 사이(케이지)에 사탕이 있으면 걸린다
+        const near = s.candies.find(cd => cd !== s.carrying && Math.hypot(cd.x - (gx + s.x) / 2 - (gx - s.x) * 0.15, cd.y - (gy + s.y) / 2 - (gy - s.y) * 0.15) <= 3.6);
+        if (near) { s.carrying = near; s.log.unshift(`${s.t.toFixed(1)}s  ✓ 리프트 내림 → 사탕 ${near.id} 걸림`); }
+        else s.log.unshift(`${s.t.toFixed(1)}s  ✗ 리프트를 내렸지만 걸린 사탕이 없음 (사탕이 바와 로봇 사이에 있어야 함)`);
+      } else {                  // 올리기
+        s.grip = true;
+        if (s.carrying) { s.log.unshift(`${s.t.toFixed(1)}s  ↑ 리프트 올림 → 사탕 ${s.carrying.id} 놓음${inBox(s.carrying, 'A') || inBox(s.carrying, 'B') ? ' (박스 안!)' : ''}`); s.carrying = null; }
       }
       finished = true;
     }
@@ -390,7 +395,14 @@ function stepSim(state, program, dt, opts = {}) {
   const vv = (vL + vR) / 2, w = (vL - vR) / ROBOT.base;   // 화면 좌표(y 아래)에서 w>0 = 시계방향 = 오른쪽 회전
   s.x += vv * Math.cos(s.th) * dt; s.y += vv * Math.sin(s.th) * dt; s.th += w * dt;
   s.yaw += w * dt * 180 / Math.PI; s.odo += Math.abs(vv) * dt; s.t += dt;
-  if (s.carrying) { const [gx, gy] = gripPos(s); s.carrying.x = gx; s.carrying.y = gy; }
+  if (s.carrying) { const [gx, gy] = gripPos(s); s.carrying.x = (gx + s.x) / 2 + (gx - s.x) * 0.15; s.carrying.y = (gy + s.y) / 2 + (gy - s.y) * 0.15; }
+  if (!s.grip) {   // 리프트가 내려가 있으면 바가 사탕을 밀어낸다 (걸리지 않음)
+    const [gx, gy] = gripPos(s);
+    for (const cd of s.candies) if (cd !== s.carrying) {
+      const d = Math.hypot(cd.x - gx, cd.y - gy);
+      if (d < 3.2 && d > 0.01) { cd.x += (cd.x - gx) / d * (3.2 - d); cd.y += (cd.y - gy) / d * (3.2 - d); }
+    }
+  }
   if (s.x < 0 || s.x > MAT.W || s.y < 0 || s.y > MAT.H) { s.msg = '매트 밖으로 나갔어요'; s.running = false; s.done = true; s.log.unshift(`${s.t.toFixed(1)}s  ! ${s.msg}`); }
   if (vv !== 0 || w !== 0) { const last = s.trail[s.trail.length - 1]; if (!last || Math.hypot(last[0] - s.x, last[1] - s.y) > 0.4) s.trail.push([s.x, s.y]); }
 
@@ -404,7 +416,7 @@ function describe(c) {
     case 'move': return `${c.cm >= 0 ? '전진' : '후진'} ${Math.abs(c.cm)}cm`;
     case 'turn': return `${c.deg >= 0 ? '오른쪽' : '왼쪽'}으로 ${Math.abs(c.deg)}° 회전`;
     case 'follow': return c.until === 'red' ? `${edge} 가장자리 따라 빨간 표시 ${c.count || 1}번째까지` : `${edge} 가장자리 따라 ${c.cm}cm`;
-    case 'grip': return c.close ? '집게 닫기' : '집게 열기';
+    case 'grip': return c.close ? '리프트 내리기 (걸기)' : '리프트 올리기 (놓기)';
     case 'wait': return `${c.sec}초 기다리기`;
   }
   return '';
@@ -415,7 +427,7 @@ function pyLine(c) {
     case 'move': return `pair.move(${c.cm}, 'cm', speed=${c.speed || 30})`;
     case 'turn': return `turn(${c.deg})`;
     case 'follow': return c.until === 'red' ? `follow_until_red(count=${c.count || 1}, edge=${edge})` : `follow_for_cm(${c.cm}, edge=${edge})`;
-    case 'grip': return c.close ? `gripper.run_for_degrees(-90, 50)   # 닫기` : `gripper.run_for_degrees(90, 50)    # 열기`;
+    case 'grip': return c.close ? `lift_down()   # 사탕 뒤로 바를 내려 건다` : `lift_up()     # 바를 올려 놓는다`;
     case 'wait': return `wait_for_seconds(${c.sec})`;
   }
   return '';
@@ -425,7 +437,7 @@ from spike.control import wait_for_seconds
 
 hub = PrimeHub()
 pair = MotorPair('E', 'F')
-gripper = Motor('C')
+lift = Motor('C')
 color = ColorSensor('A')
 dist = DistanceSensor('B')
 pair.set_motor_rotation(17.5, 'cm')   # 바퀴 1회전 = 17.5cm
@@ -433,6 +445,13 @@ pair.set_default_speed(30)
 
 LEFT, RIGHT = 1, -1   # 센서가 올라탈 라인 가장자리
 KP = 1.5              # 반사값 오차 → 조향값 비율 (곡선이 급하면 키운다)
+LIFT_DEG = 300        # 리프트 바가 바닥 ↔ 위로 움직이는 모터 각도 (기어비에 맞춰 실측)
+
+def lift_up():
+    lift.run_for_degrees(-LIFT_DEG, 40)
+
+def lift_down():
+    lift.run_for_degrees(LIFT_DEG, 40)
 
 def turn(deg):
     hub.motion_sensor.reset_yaw_angle()
@@ -479,24 +498,26 @@ const PRESETS = {
     { t: 'follow', edge: LEFT, until: 'cm', cm: ARC_LEFT_TO_TOP, speed: 25 }
   ]},
   m3: { start: 'A', prog: [
+    { t: 'grip', close: false },
     { t: 'follow', edge: LEFT, until: 'red', count: 1, speed: 25 },
     { t: 'follow', edge: LEFT, until: 'cm', cm: ARC_LEFT_TO_TOP, speed: 25 },
     { t: 'turn', deg: -90, speed: 20 },
-    { t: 'move', cm: 4, speed: 20 },
+    { t: 'move', cm: 6, speed: 20 },
     { t: 'grip', close: true },
-    { t: 'move', cm: -4, speed: 20 },
+    { t: 'move', cm: -6, speed: 20 },
     { t: 'turn', deg: -90, speed: 20 },
     { t: 'follow', edge: RIGHT, until: 'red', count: 1, speed: 25 },
     { t: 'follow', edge: RIGHT, until: 'cm', cm: LEN_PATH_A - 3, speed: 25 },
     { t: 'grip', close: false }
   ]},
   m4: { start: 'B', prog: [
+    { t: 'grip', close: false },
     { t: 'follow', edge: LEFT, until: 'red', count: 1, speed: 25 },
     { t: 'follow', edge: LEFT, until: 'cm', cm: ARC_RIGHT_TO_BOTTOM, speed: 25 },
     { t: 'turn', deg: -90, speed: 20 },
-    { t: 'move', cm: 4, speed: 20 },
+    { t: 'move', cm: 6, speed: 20 },
     { t: 'grip', close: true },
-    { t: 'move', cm: -4, speed: 20 },
+    { t: 'move', cm: -6, speed: 20 },
     { t: 'turn', deg: -90, speed: 20 },
     { t: 'follow', edge: RIGHT, until: 'red', count: 1, speed: 25 },
     { t: 'follow', edge: RIGHT, until: 'cm', cm: LEN_PATH_B - 3, speed: 25 },
@@ -530,7 +551,7 @@ if (typeof document !== 'undefined') (function () {
       (c.until === 'red' ? `${num('count', c.count, 1, 1, 9)} 번째까지` : `${num('cm', c.cm, 1, 1, 300)} cm`) + ` · 속도 ${num('speed', c.speed, 5, 5, 100)}`;
     if (c.t === 'move') body = `직진 ${num('cm', c.cm, 1, -300, 300)} cm (음수 = 후진) · 속도 ${num('speed', c.speed, 5, 5, 100)}`;
     if (c.t === 'turn') body = `회전 ${num('deg', c.deg, 5, -360, 360)} ° (양수 = 오른쪽)`;
-    if (c.t === 'grip') body = `집게 ${sel('close', c.close ? 1 : 0, [[1, '닫기 (집기)'], [0, '열기 (놓기)']])}`;
+    if (c.t === 'grip') body = `리프트 ${sel('close', c.close ? 1 : 0, [[1, '내리기 (걸기)'], [0, '올리기 (놓기)']])}`;
     if (c.t === 'wait') body = `${num('sec', c.sec, 0.5, 0.5, 30)} 초 기다리기`;
     return `<div class="step ${state.pc === i && (state.running || state.cmd) ? 'active' : ''}" data-i="${i}" style="--c:${COLORS[c.t]}">
       <div class="n">${i + 1}</div>
@@ -625,7 +646,7 @@ if (typeof document !== 'undefined') (function () {
     $('rYaw').textContent = Math.round(((state.yaw - (state.cmd ? state.cmd.yaw0 : 0)) + 540) % 360 - 180);
     $('rDist').textContent = d === null ? '—' : d.toFixed(0);
     $('rOdo').textContent = (state.cmd ? state.odo - state.cmd.odo0 : state.odo).toFixed(0);
-    $('rGrip').textContent = state.grip ? (state.carrying ? `닫힘 · 사탕 ${state.carrying.id}` : '닫힘') : '열림';
+    $('rGrip').textContent = state.grip ? '올림' : (state.carrying ? `내림 · 사탕 ${state.carrying.id} 걸림` : '내림');
     $('rTime').textContent = state.t.toFixed(1); $('rRed').textContent = state.redCount;
     $('log').innerHTML = state.log.slice(0, 40).map(esc).join('<br>');
   }
@@ -677,11 +698,14 @@ if (typeof document !== 'undefined') (function () {
     ctx.fillStyle = '#222'; ctx.fillRect(-2.8, -ROBOT.w / 2 - 1.2, 5.6, 1.6); ctx.fillRect(-2.8, ROBOT.w / 2 - 0.4, 5.6, 1.6);
     ctx.fillStyle = '#f6efe6'; roundRect(-1.5, -3.2, 5, 6.4, 0.8); ctx.fill();
     ctx.fillStyle = '#1b5c50'; for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) if ((i + j) % 2 === (s.carrying ? 0 : 1)) ctx.fillRect(-0.8 + i * 0.75, -2.5 + j * 1.2, 0.5, 0.8);
-    ctx.strokeStyle = '#1b5c50'; ctx.lineWidth = 0.7;
-    const open = s.grip ? 1.6 : 4.2;
-    ctx.beginPath(); ctx.moveTo(ROBOT.l / 2 + 2, -3.5); ctx.lineTo(ROBOT.gripOff, -open); ctx.lineTo(ROBOT.gripOff + 2, -open); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(ROBOT.l / 2 + 2, 3.5); ctx.lineTo(ROBOT.gripOff, open); ctx.lineTo(ROBOT.gripOff + 2, open); ctx.stroke();
-    ctx.fillStyle = '#f2b544'; ctx.beginPath(); ctx.moveTo(ROBOT.l / 2 + 1.5, -1.2); ctx.lineTo(ROBOT.l / 2 + 3, 0); ctx.lineTo(ROBOT.l / 2 + 1.5, 1.2); ctx.closePath(); ctx.fill();
+    // 리프트 포크: 두 팔 + 앞쪽 가로 바. 올리면 짧고 연하게(위로 들린 느낌), 내리면 바닥에 닿은 진한 선
+    const up = s.grip, fx = up ? ROBOT.gripOff - 2.5 : ROBOT.gripOff;
+    ctx.strokeStyle = up ? 'rgba(242,181,68,.55)' : '#f2b544'; ctx.lineWidth = up ? 0.8 : 1.1; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(ROBOT.l / 2 + 2, -4); ctx.lineTo(fx, -4); ctx.moveTo(ROBOT.l / 2 + 2, 4); ctx.lineTo(fx, 4); ctx.stroke();
+    ctx.strokeStyle = up ? 'rgba(90,61,0,.45)' : '#5a3d00'; ctx.lineWidth = up ? 0.8 : 1.3;
+    ctx.beginPath(); ctx.moveTo(fx, -4.6); ctx.lineTo(fx, 4.6); ctx.stroke();
+    if (up) { ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(ROBOT.l / 2 + 2, 4.6, fx - ROBOT.l / 2 - 2, 0.6); }
+    ctx.fillStyle = '#f6efe6'; ctx.beginPath(); ctx.moveTo(ROBOT.l / 2 + 1.5, -1.2); ctx.lineTo(ROBOT.l / 2 + 3, 0); ctx.lineTo(ROBOT.l / 2 + 1.5, 1.2); ctx.closePath(); ctx.fill();
     ctx.restore();
     if ($('showSensor').checked) {
       const [sx, sy] = sensorPos(s), col = colorAt(sx, sy);
