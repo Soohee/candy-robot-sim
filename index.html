@@ -100,6 +100,12 @@ pre.code .cm{color:#9a8f85}
 .copy-row{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
 .copy-row button{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:4px 10px;font-size:13px}
 
+/* config */
+.cfg{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:6px 14px}
+.cfg label{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;padding:5px 0;border-bottom:1px dashed var(--line)}
+.cfg label span{display:inline-flex;align-items:center;gap:4px;color:var(--muted);font-size:12px;white-space:nowrap}
+.cfg input{width:66px;padding:3px 6px;border:1px solid var(--line);border-radius:5px;background:var(--bg);font-family:var(--font-mono);font-size:13px;text-align:right}
+
 /* questions / notes */
 ol.q{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14px}
 ol.q li::marker{font-family:var(--font-mono);color:var(--candy)}
@@ -118,7 +124,7 @@ textarea#notes{width:100%;min-height:96px;border:1px solid var(--line);border-ra
     <h1>사탕 로봇 시뮬레이터</h1>
     <p class="sub">코딩하기 전에 로봇이 어떻게 움직일지 먼저 그려 봅니다. 명령을 순서대로 쌓고 실행하면, 컬러 센서(A) 하나로 라인을 따라가고, 리프트(C)로 사탕을 걸어 끌고 오는 과정을 화면에서 확인할 수 있습니다.</p>
   </div>
-  <div class="hint">미니 멀티로버 · 바퀴 지름 5.6cm · 1회전 17.5cm · 바퀴 간격 11cm · 주행 모터 E+F · 리프트 C · 컬러 A · 거리 B</div>
+  <div class="hint" id="specLine">미니 멀티로버 · 주행 모터 E+F · 리프트 C · 컬러 A · 거리 B</div>
 </header>
 
 <main>
@@ -191,6 +197,7 @@ textarea#notes{width:100%;min-height:96px;border:1px solid var(--line);border-ra
         <button data-add="follow"><b>▶</b>라인 따라가기</button>
         <button data-add="move"><b>↑</b>직진 (cm)</button>
         <button data-add="turn"><b>↻</b>제자리 회전 (°)</button>
+        <button data-add="find"><b>◎</b>라인 찾기</button>
         <button data-add="grip"><b>⇅</b>리프트</button>
         <button data-add="wait"><b>⏱</b>기다리기</button>
       </div>
@@ -210,6 +217,26 @@ textarea#notes{width:100%;min-height:96px;border:1px solid var(--line);border-ra
     </div>
 
     <div class="panel">
+      <div class="panel-head"><h2>로봇·매트 설정 (실측값)</h2><span class="hint">자로 잰 값을 넣고 적용 — 시뮬레이션과 파이썬 코드에 함께 반영됩니다</span></div>
+      <div class="cfg" id="cfg">
+        <label>매트 가로 길이 <span><input type="number" id="cfg-matW" step="1" min="60" max="400"> cm</span></label>
+        <label>바퀴 지름 <span><input type="number" id="cfg-wheelDia" step="0.1" min="2" max="15"> cm</span></label>
+        <label>바퀴 간격(좌우 바퀴 중심) <span><input type="number" id="cfg-base" step="0.1" min="5" max="30"> cm</span></label>
+        <label>컬러 센서: 바퀴축에서 앞으로 <span><input type="number" id="cfg-sensorOff" step="0.1" min="0" max="20"> cm</span></label>
+        <label>컬러 센서: 중심에서 오른쪽으로 (왼쪽은 음수) <span><input type="number" id="cfg-sensorSide" step="0.1" min="-10" max="10"> cm</span></label>
+        <label>리프트 바: 바퀴축에서 앞으로 <span><input type="number" id="cfg-liftOff" step="0.1" min="3" max="25"> cm</span></label>
+        <label>속도 1%당 이동 속도 <span><input type="number" id="cfg-speedCm" step="0.05" min="0.1" max="2"> cm/s</span></label>
+        <label>라인 추적 민감도 KP <span><input type="number" id="cfg-kp" step="0.1" min="0.2" max="5"></span></label>
+        <label>보행자 정지 거리 <span><input type="number" id="cfg-safeCm" step="1" min="3" max="50"> cm</span></label>
+      </div>
+      <div class="run-row">
+        <button class="btn" id="cfgApply">적용</button>
+        <button class="btn ghost" id="cfgDefault">기본값</button>
+        <span class="hint" id="cfgNote">바퀴 1회전 = 17.5cm</span>
+      </div>
+    </div>
+
+    <div class="panel">
       <div class="panel-head"><h2>파이썬으로 보면</h2><span class="hint">블록 한 줄 = 파이썬 한 줄. 실행 중인 줄이 표시됩니다.</span></div>
       <pre class="code" id="code"></pre>
       <div class="copy-row"><button id="copyCode">코드 복사</button></div>
@@ -219,16 +246,26 @@ textarea#notes{width:100%;min-height:96px;border:1px solid var(--line);border-ra
 
 <script>
 // ===================== CORE-START (DOM 없이도 동작하는 시뮬레이션) =====================
-const MAT = { W: 166, H: 80 };                 // cm (매트 사진 비율 기준, 가로 166cm 가정)
+// ---- 실측값 설정 (화면의 '로봇·매트 설정'에서 바꾼다) ----
+const CFG = {
+  matW: 166,      // 매트 가로 길이(cm). 세로는 비율(166:80)로 따라간다
+  wheelDia: 5.6,  // 바퀴 지름(cm)
+  base: 11,       // 바퀴 간격(cm) — 좌우 바퀴 중심 사이
+  sensorOff: 6,   // 컬러 센서: 바퀴축에서 앞으로(cm)
+  sensorSide: 0,  // 컬러 센서: 중심에서 오른쪽으로(cm), 왼쪽이면 음수
+  liftOff: 11,    // 리프트 바: 바퀴축에서 앞으로(cm)
+  speedCm: 0.5,   // 속도 1%당 cm/s (속도 30 → 15cm/s)
+  kp: 1.5,        // 라인 추적 민감도
+  safeCm: 10      // 보행자 정지 거리(cm)
+};
+const BASE_W = 166, BASE_H = 80;   // 사진 기준 매트 비율
+const MAT = { W: 166, H: 80 };
 const CIRCLE = { cx: 83, cy: 41, r: 19.5 };
 const MARKERS = [{ ang: 193, name: '왼쪽 입구' }, { ang: 14, name: '오른쪽 입구' }];
 const BOX = { A: { x: 10, y: 73 }, B: { x: 157, y: 9 }, half: 6.5 };
-const ZONES = {
-  A: [[66, 3], [100, 3], [92, 21.5], [74, 21.5]],
-  B: [[74, 60.5], [92, 60.5], [100, 78], [66, 78]]
-};
+const ZONES = { A: [], B: [] };
 const CANDY_HOME = { A: { x: 83, y: 10 }, B: { x: 83, y: 72 } };
-const ROBOT = { base: 11, wheelDia: 5.6, sensorOff: 6, gripOff: 11, w: 12, l: 15, sensorR: 0.8 };   // gripOff = 리프트 바(앞쪽)까지 거리
+const ROBOT = { base: 11, wheelDia: 5.6, sensorOff: 6, sensorSide: 0, gripOff: 11, w: 12, l: 15, sensorR: 0.8 };
 const LINE_HW = 0.75;   // 라인 반폭 (1.5cm 테이프)
 const LEFT = 1, RIGHT = -1;
 
@@ -248,12 +285,26 @@ function catmull(pts, sub = 10) {
   return out;
 }
 function markerPt(ang) { const a = ang * Math.PI / 180; return [CIRCLE.cx + CIRCLE.r * Math.cos(a), CIRCLE.cy + CIRCLE.r * Math.sin(a)]; }
-const PATH_A = catmull([[10, 66.5], [10, 50], [10.5, 38], [14, 31], [19, 29], [24, 31], [28, 38], [32, 48], [37, 57], [43, 60], [49, 56], [53, 47], [57, 39], [61, 36.5], markerPt(193)]);
-const PATH_B = catmull([[157, 15.5], [157, 30], [157, 40], [154, 48], [148, 52], [143, 49], [139, 40], [134, 28], [128, 23], [122, 25], [117, 32], [112, 41], [107, 46], markerPt(14)]);
-const CIRC_PTS = []; for (let i = 0; i <= 180; i++) { const a = i / 180 * 2 * Math.PI; CIRC_PTS.push([CIRCLE.cx + CIRCLE.r * Math.cos(a), CIRCLE.cy + CIRCLE.r * Math.sin(a)]); }
+let PATH_A = [], PATH_B = [], CIRC_PTS = [], LINES = [], BOX_LINES = [];
 function boxPts(b) { const h = BOX.half; return [[b.x - h, b.y - h], [b.x + h, b.y - h], [b.x + h, b.y + h], [b.x - h, b.y + h], [b.x - h, b.y - h]]; }
-const LINES = [PATH_A, PATH_B, CIRC_PTS];            // 센서가 읽는 라인 (박스 테두리는 제외)
-const BOX_LINES = [boxPts(BOX.A), boxPts(BOX.B)];
+
+// 설정값으로 매트 기하와 로봇 치수를 다시 만든다 (모든 좌표는 사진 비율 166×80을 matW에 맞춰 늘인다)
+function applyConfig() {
+  const f = CFG.matW / BASE_W, S = p => [p[0] * f, p[1] * f];
+  MAT.W = BASE_W * f; MAT.H = BASE_H * f;
+  CIRCLE.cx = 83 * f; CIRCLE.cy = 41 * f; CIRCLE.r = 19.5 * f;
+  BOX.A = { x: 10 * f, y: 73 * f }; BOX.B = { x: 157 * f, y: 9 * f }; BOX.half = 6.5 * f;
+  ZONES.A = [[66, 3], [100, 3], [92, 21.5], [74, 21.5]].map(S);
+  ZONES.B = [[74, 60.5], [92, 60.5], [100, 78], [66, 78]].map(S);
+  CANDY_HOME.A = { x: 83 * f, y: 10 * f }; CANDY_HOME.B = { x: 83 * f, y: 72 * f };
+  PATH_A = catmull([[10, 66.5], [10, 50], [10.5, 38], [14, 31], [19, 29], [24, 31], [28, 38], [32, 48], [37, 57], [43, 60], [49, 56], [53, 47], [57, 39], [61, 36.5]].map(S).concat([markerPt(193)]));
+  PATH_B = catmull([[157, 15.5], [157, 30], [157, 40], [154, 48], [148, 52], [143, 49], [139, 40], [134, 28], [128, 23], [122, 25], [117, 32], [112, 41], [107, 46]].map(S).concat([markerPt(14)]));
+  CIRC_PTS = []; for (let i = 0; i <= 180; i++) { const a = i / 180 * 2 * Math.PI; CIRC_PTS.push([CIRCLE.cx + CIRCLE.r * Math.cos(a), CIRCLE.cy + CIRCLE.r * Math.sin(a)]); }
+  LINES = [PATH_A, PATH_B, CIRC_PTS];            // 센서가 읽는 라인 (박스 테두리는 제외)
+  BOX_LINES = [boxPts(BOX.A), boxPts(BOX.B)];
+  ROBOT.base = CFG.base; ROBOT.wheelDia = CFG.wheelDia; ROBOT.sensorOff = CFG.sensorOff; ROBOT.sensorSide = CFG.sensorSide; ROBOT.gripOff = CFG.liftOff;
+}
+applyConfig();
 function polyLen(p) { let L = 0; for (let i = 1; i < p.length; i++) L += Math.hypot(p[i][0] - p[i - 1][0], p[i][1] - p[i - 1][1]); return L; }
 
 function distToSeg(px, py, ax, ay, bx, by) {
@@ -302,8 +353,12 @@ function makeState(startKey) {
     lastSteer: 0
   };
 }
-function sensorPos(s) { return [s.x + Math.cos(s.th) * ROBOT.sensorOff, s.y + Math.sin(s.th) * ROBOT.sensorOff]; }
+function sensorPos(s) { return [s.x + Math.cos(s.th) * ROBOT.sensorOff - Math.sin(s.th) * ROBOT.sensorSide, s.y + Math.sin(s.th) * ROBOT.sensorOff + Math.cos(s.th) * ROBOT.sensorSide]; }
 function gripPos(s) { return [s.x + Math.cos(s.th) * ROBOT.gripOff, s.y + Math.sin(s.th) * ROBOT.gripOff]; }
+function robotFront() { return ROBOT.l / 2 - 1; }                       // 몸체 앞면 (바퀴축 기준)
+function cageCenter() { return (robotFront() + ROBOT.gripOff) / 2; }    // 리프트 케이지 가운데 (바퀴축 기준)
+function toLocal(s, x, y) { const dx = x - s.x, dy = y - s.y, c = Math.cos(s.th), sn = Math.sin(s.th); return [dx * c + dy * sn, -dx * sn + dy * c]; }  // [앞, 오른쪽]
+function toWorld(s, u, v) { const c = Math.cos(s.th), sn = Math.sin(s.th); return [s.x + u * c - v * sn, s.y + u * sn + v * c]; }
 function distanceRay(s) {
   const [ox, oy] = sensorPos(s), dx = Math.cos(s.th), dy = Math.sin(s.th);
   let best = null;
@@ -317,7 +372,7 @@ function distanceRay(s) {
   return best === null || best > 200 ? null : best;
 }
 
-function cmPerSec(speedPct) { return speedPct * 0.5; }
+function cmPerSec(speedPct) { return speedPct * CFG.speedCm; }
 
 // steering: SPIKE pair.start(steering=s) 모델. s=0 직진, s=±50 한쪽 바퀴 정지, s=±100 제자리 회전
 function wheelSpeeds(v, s) {
@@ -350,7 +405,7 @@ function stepSim(state, program, dt, opts = {}) {
   } else if (c.t === 'follow') {
     const [sx, sy] = sensorPos(s);
     const r = reflectAt(sx, sy);
-    const steer = Math.max(-100, Math.min(100, (r - 50) * (c.kp || 1.5) * (c.edge || LEFT)));
+    const steer = Math.max(-100, Math.min(100, (r - 50) * (c.kp || CFG.kp) * (c.edge || LEFT)));
     s.lastSteer = steer;
     [vL, vR] = wheelSpeeds(v, steer);
     if (c.until === 'red') {
@@ -362,15 +417,21 @@ function stepSim(state, program, dt, opts = {}) {
       if (s.odo - cs.odo0 >= c.cm) finished = true;
     }
     if (s.t - cs.t0 > 90) { finished = true; s.msg = '시간 초과(라인을 놓쳤나요?)'; s.log.unshift(`${s.t.toFixed(1)}s  ! ${s.msg}`); s.running = false; s.done = true; }
+  } else if (c.t === 'find') {
+    // 라인이 보일 때까지 제자리 회전 (사탕을 걸고 돌아선 뒤 센서를 라인 위로 되돌릴 때)
+    const dir = (c.dir || -1) >= 0 ? 1 : -1, vt = cmPerSec(c.speed || 15);
+    vL = vt * dir; vR = -vt * dir;
+    const [sx, sy] = sensorPos(s);
+    if (reflectAt(sx, sy) < 40) finished = true;
+    else if (Math.abs(s.yaw - cs.yaw0) > 150) { finished = true; s.log.unshift(`${s.t.toFixed(1)}s  ✗ 150° 돌았지만 라인을 못 찾음`); }
   } else if (c.t === 'grip') {
     // 리프트: 올린 채 다가가 → 사탕 뒤로 내리면 걸린다 → 끌고 간다 → 올리면 놓인다
     if (s.t - cs.t0 >= 0.6) {
       if (c.close) {            // 내리기
         if (!s.grip) s.log.unshift(`${s.t.toFixed(1)}s  · 리프트가 이미 내려가 있음`);
         s.grip = false;
-        const [gx, gy] = gripPos(s);
-        // 바와 로봇 앞면 사이(케이지)에 사탕이 있으면 걸린다
-        const near = s.candies.find(cd => cd !== s.carrying && Math.hypot(cd.x - (gx + s.x) / 2 - (gx - s.x) * 0.15, cd.y - (gy + s.y) / 2 - (gy - s.y) * 0.15) <= 3.6);
+        // 바와 로봇 앞면 사이(케이지) 직사각형 안에 사탕 중심이 있으면 걸린다
+        const near = s.candies.find(cd => { if (cd === s.carrying) return false; const [u, v] = toLocal(s, cd.x, cd.y); return u >= robotFront() - 1.5 && u <= ROBOT.gripOff + 1.5 && Math.abs(v) <= 4.5; });
         if (near) { s.carrying = near; s.log.unshift(`${s.t.toFixed(1)}s  ✓ 리프트 내림 → 사탕 ${near.id} 걸림`); }
         else s.log.unshift(`${s.t.toFixed(1)}s  ✗ 리프트를 내렸지만 걸린 사탕이 없음 (사탕이 바와 로봇 사이에 있어야 함)`);
       } else {                  // 올리기
@@ -387,7 +448,7 @@ function stepSim(state, program, dt, opts = {}) {
   let blocked = false;
   if (opts.safety && (vL !== 0 || vR !== 0)) {
     const d = distanceRay(s);
-    if (d !== null && d < 10) { blocked = true; vL = vR = 0; }
+    if (d !== null && d < CFG.safeCm) { blocked = true; vL = vR = 0; }
   }
   s.blocked = blocked;
 
@@ -395,12 +456,13 @@ function stepSim(state, program, dt, opts = {}) {
   const vv = (vL + vR) / 2, w = (vL - vR) / ROBOT.base;   // 화면 좌표(y 아래)에서 w>0 = 시계방향 = 오른쪽 회전
   s.x += vv * Math.cos(s.th) * dt; s.y += vv * Math.sin(s.th) * dt; s.th += w * dt;
   s.yaw += w * dt * 180 / Math.PI; s.odo += Math.abs(vv) * dt; s.t += dt;
-  if (s.carrying) { const [gx, gy] = gripPos(s); s.carrying.x = (gx + s.x) / 2 + (gx - s.x) * 0.15; s.carrying.y = (gy + s.y) / 2 + (gy - s.y) * 0.15; }
+  if (s.carrying) { const [cx, cy] = toWorld(s, cageCenter(), 0); s.carrying.x = cx; s.carrying.y = cy; }
   if (!s.grip) {   // 리프트가 내려가 있으면 바가 사탕을 밀어낸다 (걸리지 않음)
-    const [gx, gy] = gripPos(s);
     for (const cd of s.candies) if (cd !== s.carrying) {
-      const d = Math.hypot(cd.x - gx, cd.y - gy);
-      if (d < 3.2 && d > 0.01) { cd.x += (cd.x - gx) / d * (3.2 - d); cd.y += (cd.y - gy) / d * (3.2 - d); }
+      const [u, v] = toLocal(s, cd.x, cd.y);
+      if (Math.abs(v) <= 5 && u > ROBOT.gripOff - 0.5 && u < ROBOT.gripOff + 2.6) {   // 바 앞에 닿으면 앞으로 밀린다
+        const [nx, ny] = toWorld(s, ROBOT.gripOff + 2.6, v); cd.x = nx; cd.y = ny;
+      }
     }
   }
   if (s.x < 0 || s.x > MAT.W || s.y < 0 || s.y > MAT.H) { s.msg = '매트 밖으로 나갔어요'; s.running = false; s.done = true; s.log.unshift(`${s.t.toFixed(1)}s  ! ${s.msg}`); }
@@ -416,6 +478,7 @@ function describe(c) {
     case 'move': return `${c.cm >= 0 ? '전진' : '후진'} ${Math.abs(c.cm)}cm`;
     case 'turn': return `${c.deg >= 0 ? '오른쪽' : '왼쪽'}으로 ${Math.abs(c.deg)}° 회전`;
     case 'follow': return c.until === 'red' ? `${edge} 가장자리 따라 빨간 표시 ${c.count || 1}번째까지` : `${edge} 가장자리 따라 ${c.cm}cm`;
+    case 'find': return `${(c.dir || -1) >= 0 ? '오른쪽' : '왼쪽'}으로 돌며 라인 찾기`;
     case 'grip': return c.close ? '리프트 내리기 (걸기)' : '리프트 올리기 (놓기)';
     case 'wait': return `${c.sec}초 기다리기`;
   }
@@ -427,12 +490,13 @@ function pyLine(c) {
     case 'move': return `pair.move(${c.cm}, 'cm', speed=${c.speed || 30})`;
     case 'turn': return `turn(${c.deg})`;
     case 'follow': return c.until === 'red' ? `follow_until_red(count=${c.count || 1}, edge=${edge})` : `follow_for_cm(${c.cm}, edge=${edge})`;
+    case 'find': return `turn_until_line(${(c.dir || -1) >= 0 ? 'RIGHT' : 'LEFT'})`;
     case 'grip': return c.close ? `lift_down()   # 사탕 뒤로 바를 내려 건다` : `lift_up()     # 바를 올려 놓는다`;
     case 'wait': return `wait_for_seconds(${c.sec})`;
   }
   return '';
 }
-const PY_HEADER = `from spike import PrimeHub, MotorPair, Motor, ColorSensor, DistanceSensor
+function pyHeader() { return `from spike import PrimeHub, MotorPair, Motor, ColorSensor, DistanceSensor
 from spike.control import wait_for_seconds
 
 hub = PrimeHub()
@@ -440,12 +504,14 @@ pair = MotorPair('E', 'F')
 lift = Motor('C')
 color = ColorSensor('A')
 dist = DistanceSensor('B')
-pair.set_motor_rotation(17.5, 'cm')   # 바퀴 1회전 = 17.5cm
+WHEEL_CM = ${wheelCirc()}   # 바퀴 1회전 이동 거리 = 지름 ${CFG.wheelDia}cm × 3.14
+pair.set_motor_rotation(WHEEL_CM, 'cm')
 pair.set_default_speed(30)
 
 LEFT, RIGHT = 1, -1   # 센서가 올라탈 라인 가장자리
-KP = 1.5              # 반사값 오차 → 조향값 비율 (곡선이 급하면 키운다)
+KP = ${CFG.kp}              # 반사값 오차 → 조향값 비율 (곡선이 급하면 키운다)
 LIFT_DEG = 300        # 리프트 바가 바닥 ↔ 위로 움직이는 모터 각도 (기어비에 맞춰 실측)
+SAFE_CM = ${CFG.safeCm}          # 거리 센서로 이 거리 안에 무언가 보이면 정지
 
 def lift_up():
     lift.run_for_degrees(-LIFT_DEG, 40)
@@ -457,6 +523,13 @@ def turn(deg):
     hub.motion_sensor.reset_yaw_angle()
     pair.start(steering=100 if deg > 0 else -100, speed=20)
     while abs(hub.motion_sensor.get_yaw_angle()) < abs(deg):
+        pass
+    pair.stop()
+
+def turn_until_line(direction=LEFT):
+    """라인(검정)이 보일 때까지 제자리 회전. RIGHT=오른쪽, LEFT=왼쪽"""
+    pair.start(steering=100 * direction, speed=15)
+    while color.get_reflected_light() > 40:
         pass
     pair.stop()
 
@@ -477,59 +550,89 @@ def follow_until_red(count=1, edge=LEFT):
 def follow_for_cm(cm, edge=LEFT):
     m = Motor('E')
     m.set_degrees_counted(0)
-    while abs(m.get_degrees_counted()) / 360 * 17.5 < cm:
+    while abs(m.get_degrees_counted()) / 360 * WHEEL_CM < cm:
         follow_step(edge)
     pair.stop()
 
-# ---- 미션 ----`;
+# ---- 미션 ----`; }
+function wheelCirc() { return Math.round(CFG.wheelDia * Math.PI * 10) / 10; }
 
-// 거리 계산 (프리셋용)
-const ARC_LEFT_TO_TOP = Math.round(CIRCLE.r * (270 - 193) * Math.PI / 180) + ROBOT.sensorOff;   // 왼쪽 입구 → 원 꼭대기 (센서가 바퀴축보다 앞에 있어 그만큼 더 간다)
-const ARC_RIGHT_TO_BOTTOM = Math.round(CIRCLE.r * (90 - 14) * Math.PI / 180) + ROBOT.sensorOff;  // 오른쪽 입구 → 원 바닥
-const LEN_PATH_A = Math.round(polyLen(PATH_A));
-const LEN_PATH_B = Math.round(polyLen(PATH_B));
-
+// 거리 계산 (프리셋용) — 현재 설정값으로 매번 계산한다
+function presetDist() {
+  return {
+    // 입구 → 원 꼭대기(바닥) 호 길이 + 센서가 축보다 앞에 있는 만큼 (기하 계산값; 프리셋은 아래 calibrateMission이 시뮬레이션으로 다시 잰다)
+    arcLeftToTop: Math.round(CIRCLE.r * (270 - 193) * Math.PI / 180 + ROBOT.sensorOff),
+    arcRightToBottom: Math.round(CIRCLE.r * (90 - 14) * Math.PI / 180 + ROBOT.sensorOff),
+    // 곡선 길 끝(박스 가장자리)에서 사탕이 박스 가운데 놓이도록: 센서가 축보다 앞선 만큼 빼고, 박스 반폭-케이지 가운데 만큼 더 간다
+    // (+4: '빨간 표시까지'는 표시 가장자리에 닿는 순간 멈추므로 표시 가운데보다 약 4cm 앞에서 시작한다)
+    homeA: Math.round(polyLen(PATH_A) + 4 - ROBOT.sensorOff + BOX.half - cageCenter()),
+    homeB: Math.round(polyLen(PATH_B) + 4 - ROBOT.sensorOff + BOX.half - cageCenter()),
+    // 원 꼭대기→사탕 거리에서, 사탕이 케이지 가운데 오도록. 왼쪽 가장자리 추적이면 축이 라인보다 (센서 오른쪽 오프셋 + 0.75cm)만큼 바깥(사탕 쪽)에 있다
+    reach: Math.max(1, Math.round((CIRCLE.cy - CIRCLE.r - CANDY_HOME.A.y) - cageCenter() - (ROBOT.sensorSide + LINE_HW)))
+  };
+}
+// 시뮬레이션을 짧게 돌려 '입구→사탕 앞', '사탕 쪽 전진', '입구→박스' 거리를 현재 설정값으로 직접 잰다
+function runUntil(state, prog, cond, maxT = 120) {
+  state.running = true;
+  while (!state.done && state.t < maxT) { stepSim(state, prog, 0.01); if (cond(state)) return true; }
+  return false;
+}
+function calibrateMission(start) {
+  const g = presetDist(), isA = start === 'A';
+  const candy = isA ? CANDY_HOME.A : CANDY_HOME.B, box = isA ? BOX.A : BOX.B;
+  // 1) 입구에서 라인을 따라 원 꼭대기(A) / 바닥(B)까지: 축이 사탕의 x좌표를 지나는 순간의 이동 거리
+  let st = makeState(start), prog = [{ t: 'follow', edge: LEFT, until: 'red', count: 1, speed: 25 }, { t: 'follow', edge: LEFT, until: 'cm', cm: 400, speed: 25 }];
+  let arc = isA ? g.arcLeftToTop : g.arcRightToBottom;
+  if (runUntil(st, prog, x => x.pc === 1 && x.cmd && (isA ? x.x >= candy.x : x.x <= candy.x))) arc = Math.round(st.odo - st.cmd.odo0);
+  // 2) 돌아선 뒤 사탕이 케이지 가운데 오도록 전진할 거리
+  st = makeState(start); prog = [{ t: 'grip', close: false }, { t: 'follow', edge: LEFT, until: 'red', count: 1, speed: 25 }, { t: 'follow', edge: LEFT, until: 'cm', cm: arc, speed: 25 }, { t: 'turn', deg: -90, speed: 20 }, { t: 'wait', sec: 1 }];
+  let reach = g.reach;
+  if (runUntil(st, prog, x => x.pc === 4)) { const [u] = toLocal(st, candy.x, candy.y); reach = Math.max(1, Math.round(u - cageCenter())); }
+  // 3) 돌아선 뒤 센서를 라인 위로 되돌리는 회전 방향: 왼쪽/오른쪽 중 적게 도는 쪽
+  const head = [{ t: 'grip', close: false }, { t: 'follow', edge: LEFT, until: 'red', count: 1, speed: 25 }, { t: 'follow', edge: LEFT, until: 'cm', cm: arc, speed: 25 },
+    { t: 'turn', deg: -90, speed: 20 }, { t: 'move', cm: reach, speed: 20 }, { t: 'grip', close: true }, { t: 'move', cm: -reach, speed: 20 }, { t: 'turn', deg: -90, speed: 20 }];
+  let findDir = -1, best = 1e9;
+  for (const dir of [-1, 1]) {
+    st = makeState(start); prog = head.concat([{ t: 'find', dir, speed: 15 }, { t: 'wait', sec: 1 }]);
+    let y0 = null;
+    if (runUntil(st, prog, x => { if (x.pc === 8 && x.cmd && y0 === null) y0 = x.cmd.yaw0; return x.pc === 9; })) { const turned = Math.abs(st.yaw - y0); if (turned < best) { best = turned; findDir = dir; } }
+  }
+  // 4) 사탕을 걸고 돌아와 입구를 지난 뒤, 케이지 가운데가 박스 가운데에 오는 이동 거리
+  st = makeState(start); prog = head.concat([{ t: 'find', dir: findDir, speed: 15 }, { t: 'follow', edge: RIGHT, until: 'red', count: 1, speed: 25 }, { t: 'follow', edge: RIGHT, until: 'cm', cm: 400, speed: 25 }]);
+  let home = isA ? g.homeA : g.homeB;
+  if (runUntil(st, prog, x => { if (x.pc !== 10 || !x.cmd) return false; const [cx, cy] = toWorld(x, cageCenter(), 0); return isA ? cy >= box.y : cy <= box.y; })) home = Math.round(st.odo - st.cmd.odo0);
+  return { arc, reach, home, findDir };
+}
+function candyMission(start) {
+  const d = calibrateMission(start);
+  return [
+    { t: 'grip', close: false },
+    { t: 'follow', edge: LEFT, until: 'red', count: 1, speed: 25 },
+    { t: 'follow', edge: LEFT, until: 'cm', cm: d.arc, speed: 25 },
+    { t: 'turn', deg: -90, speed: 20 },
+    { t: 'move', cm: d.reach, speed: 20 },
+    { t: 'grip', close: true },
+    { t: 'move', cm: -d.reach, speed: 20 },
+    { t: 'turn', deg: -90, speed: 20 },
+    { t: 'find', dir: d.findDir, speed: 15 },
+    { t: 'follow', edge: RIGHT, until: 'red', count: 1, speed: 25 },
+    { t: 'follow', edge: RIGHT, until: 'cm', cm: d.home, speed: 25 },
+    { t: 'grip', close: false }
+  ];
+}
 const PRESETS = {
-  m1: { start: 'A', prog: [
-    { t: 'follow', edge: LEFT, until: 'red', count: 1, speed: 25 }
-  ]},
-  m2: { start: 'A', prog: [
+  m1: () => ({ start: 'A', prog: [{ t: 'follow', edge: LEFT, until: 'red', count: 1, speed: 25 }] }),
+  m2: () => ({ start: 'A', prog: [
     { t: 'follow', edge: LEFT, until: 'red', count: 1, speed: 25 },
-    { t: 'follow', edge: LEFT, until: 'cm', cm: ARC_LEFT_TO_TOP, speed: 25 }
-  ]},
-  m3: { start: 'A', prog: [
-    { t: 'grip', close: false },
-    { t: 'follow', edge: LEFT, until: 'red', count: 1, speed: 25 },
-    { t: 'follow', edge: LEFT, until: 'cm', cm: ARC_LEFT_TO_TOP, speed: 25 },
-    { t: 'turn', deg: -90, speed: 20 },
-    { t: 'move', cm: 6, speed: 20 },
-    { t: 'grip', close: true },
-    { t: 'move', cm: -6, speed: 20 },
-    { t: 'turn', deg: -90, speed: 20 },
-    { t: 'follow', edge: RIGHT, until: 'red', count: 1, speed: 25 },
-    { t: 'follow', edge: RIGHT, until: 'cm', cm: LEN_PATH_A - 3, speed: 25 },
-    { t: 'grip', close: false }
-  ]},
-  m4: { start: 'B', prog: [
-    { t: 'grip', close: false },
-    { t: 'follow', edge: LEFT, until: 'red', count: 1, speed: 25 },
-    { t: 'follow', edge: LEFT, until: 'cm', cm: ARC_RIGHT_TO_BOTTOM, speed: 25 },
-    { t: 'turn', deg: -90, speed: 20 },
-    { t: 'move', cm: 6, speed: 20 },
-    { t: 'grip', close: true },
-    { t: 'move', cm: -6, speed: 20 },
-    { t: 'turn', deg: -90, speed: 20 },
-    { t: 'follow', edge: RIGHT, until: 'red', count: 1, speed: 25 },
-    { t: 'follow', edge: RIGHT, until: 'cm', cm: LEN_PATH_B - 3, speed: 25 },
-    { t: 'grip', close: false }
-  ]},
-  m5: { start: 'A', prog: [
+    { t: 'follow', edge: LEFT, until: 'cm', cm: calibrateMission('A').arc, speed: 25 }] }),
+  m3: () => ({ start: 'A', prog: candyMission('A') }),
+  m4: () => ({ start: 'B', prog: candyMission('B') }),
+  m5: () => ({ start: 'A', prog: [
     { t: 'follow', edge: LEFT, until: 'red', count: 1, speed: 25 },
     { t: 'follow', edge: LEFT, until: 'cm', cm: 6, speed: 25 },
     { t: 'follow', edge: RIGHT, until: 'red', count: 1, speed: 25 },
     { t: 'follow', edge: RIGHT, until: 'cm', cm: 6, speed: 25 },
-    { t: 'follow', edge: LEFT, until: 'red', count: 1, speed: 25 }
-  ]}
+    { t: 'follow', edge: LEFT, until: 'red', count: 1, speed: 25 }] })
 };
 // ===================== CORE-END =====================
 
@@ -539,9 +642,9 @@ if (typeof document !== 'undefined') (function () {
   let program = [], state = makeState('A'), raf = null, lastTs = null;
 
   // ---------- 프로그램 편집 ----------
-  const COLORS = { follow: '#2a8c7a', move: '#3a6fd8', turn: '#b4620f', grip: '#d9402f', wait: '#7a6f66' };
+  const COLORS = { follow: '#2a8c7a', move: '#3a6fd8', turn: '#b4620f', find: '#6b5bd6', grip: '#d9402f', wait: '#7a6f66' };
   function defaults(t) {
-    return { follow: { t, edge: LEFT, until: 'red', count: 1, speed: 25, cm: 20 }, move: { t, cm: 10, speed: 30 }, turn: { t, deg: 90, speed: 20 }, grip: { t, close: true }, wait: { t, sec: 1 } }[t];
+    return { follow: { t, edge: LEFT, until: 'red', count: 1, speed: 25, cm: 20 }, move: { t, cm: 10, speed: 30 }, turn: { t, deg: 90, speed: 20 }, grip: { t, close: true }, find: { t, dir: -1, speed: 15 }, wait: { t, sec: 1 } }[t];
   }
   function num(name, val, step, min, max) { return `<input type="number" data-k="${name}" value="${val}" step="${step || 1}" ${min !== undefined ? `min="${min}"` : ''} ${max !== undefined ? `max="${max}"` : ''}>`; }
   function sel(name, val, opts) { return `<select data-k="${name}">${opts.map(([v, l]) => `<option value="${v}" ${String(v) === String(val) ? 'selected' : ''}>${l}</option>`).join('')}</select>`; }
@@ -551,6 +654,7 @@ if (typeof document !== 'undefined') (function () {
       (c.until === 'red' ? `${num('count', c.count, 1, 1, 9)} 번째까지` : `${num('cm', c.cm, 1, 1, 300)} cm`) + ` · 속도 ${num('speed', c.speed, 5, 5, 100)}`;
     if (c.t === 'move') body = `직진 ${num('cm', c.cm, 1, -300, 300)} cm (음수 = 후진) · 속도 ${num('speed', c.speed, 5, 5, 100)}`;
     if (c.t === 'turn') body = `회전 ${num('deg', c.deg, 5, -360, 360)} ° (양수 = 오른쪽)`;
+    if (c.t === 'find') body = `${sel('dir', c.dir, [[-1, '왼쪽'], [1, '오른쪽']])}으로 돌며 라인이 보일 때까지 회전`;
     if (c.t === 'grip') body = `리프트 ${sel('close', c.close ? 1 : 0, [[1, '내리기 (걸기)'], [0, '올리기 (놓기)']])}`;
     if (c.t === 'wait') body = `${num('sec', c.sec, 0.5, 0.5, 30)} 초 기다리기`;
     return `<div class="step ${state.pc === i && (state.running || state.cmd) ? 'active' : ''}" data-i="${i}" style="--c:${COLORS[c.t]}">
@@ -564,13 +668,13 @@ if (typeof document !== 'undefined') (function () {
     renderCode();
   }
   function renderCode() {
-    const lines = PY_HEADER.split('\n').map(l => l.replace(/#.*$/, m => `<span class="cm">${esc(m)}</span>`));
+    const lines = pyHeader().split('\n').map(l => l.replace(/#.*$/, m => `<span class="cm">${esc(m)}</span>`));
     program.forEach((c, i) => lines.push(`<span class="${state.pc === i && !state.done && (state.running || state.cmd) ? 'hl' : ''}">${esc(pyLine(c)).replace(/#.*$/, m => `<span class="cm">${m}</span>`)}</span>`));
     if (!program.length) lines.push('<span class="cm"># (아직 명령이 없습니다)</span>');
     $('code').innerHTML = lines.join('\n');
   }
   function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
-  function plainCode() { return PY_HEADER + '\n' + (program.map(pyLine).join('\n') || '# (명령 없음)') + '\n'; }
+  function plainCode() { return pyHeader() + '\n' + (program.map(pyLine).join('\n') || '# (명령 없음)') + '\n'; }
 
   $('palette').addEventListener('click', e => { const b = e.target.closest('[data-add]'); if (!b) return; program.push(defaults(b.dataset.add)); softReset(); renderSteps(); });
   $('steps').addEventListener('change', e => {
@@ -591,7 +695,7 @@ if (typeof document !== 'undefined') (function () {
     softReset(); renderSteps();
   });
   $('preset').addEventListener('change', e => {
-    const p = PRESETS[e.target.value]; if (!p) return;
+    const p = PRESETS[e.target.value] && PRESETS[e.target.value](); if (!p) return;
     program = p.prog.map(c => ({ ...c })); $('start').value = p.start; hardReset(); renderSteps(); e.target.value = '';
   });
 
@@ -692,20 +796,20 @@ if (typeof document !== 'undefined') (function () {
     }
     // 로봇
     const s = state; ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.th);
-    ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(-ROBOT.l / 2 + 2.5, -ROBOT.w / 2 + 0.6, ROBOT.l, ROBOT.w);
+    ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(-ROBOT.l / 2 - 0.5, -ROBOT.w / 2 + 0.6, ROBOT.l, ROBOT.w);
     ctx.fillStyle = '#2a8c7a'; ctx.strokeStyle = '#1b5c50'; ctx.lineWidth = 0.4;
-    roundRect(-ROBOT.l / 2 + 2, -ROBOT.w / 2, ROBOT.l, ROBOT.w, 1.5); ctx.fill(); ctx.stroke();
+    roundRect(-ROBOT.l / 2 - 1, -ROBOT.w / 2, ROBOT.l, ROBOT.w, 1.5); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#222'; ctx.fillRect(-2.8, -ROBOT.w / 2 - 1.2, 5.6, 1.6); ctx.fillRect(-2.8, ROBOT.w / 2 - 0.4, 5.6, 1.6);
     ctx.fillStyle = '#f6efe6'; roundRect(-1.5, -3.2, 5, 6.4, 0.8); ctx.fill();
     ctx.fillStyle = '#1b5c50'; for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) if ((i + j) % 2 === (s.carrying ? 0 : 1)) ctx.fillRect(-0.8 + i * 0.75, -2.5 + j * 1.2, 0.5, 0.8);
     // 리프트 포크: 두 팔 + 앞쪽 가로 바. 올리면 짧고 연하게(위로 들린 느낌), 내리면 바닥에 닿은 진한 선
-    const up = s.grip, fx = up ? ROBOT.gripOff - 2.5 : ROBOT.gripOff;
+    const up = s.grip, fx = up ? ROBOT.gripOff - 2 : ROBOT.gripOff;
     ctx.strokeStyle = up ? 'rgba(242,181,68,.55)' : '#f2b544'; ctx.lineWidth = up ? 0.8 : 1.1; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(ROBOT.l / 2 + 2, -4); ctx.lineTo(fx, -4); ctx.moveTo(ROBOT.l / 2 + 2, 4); ctx.lineTo(fx, 4); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(robotFront(), -4); ctx.lineTo(fx, -4); ctx.moveTo(robotFront(), 4); ctx.lineTo(fx, 4); ctx.stroke();
     ctx.strokeStyle = up ? 'rgba(90,61,0,.45)' : '#5a3d00'; ctx.lineWidth = up ? 0.8 : 1.3;
     ctx.beginPath(); ctx.moveTo(fx, -4.6); ctx.lineTo(fx, 4.6); ctx.stroke();
-    if (up) { ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(ROBOT.l / 2 + 2, 4.6, fx - ROBOT.l / 2 - 2, 0.6); }
-    ctx.fillStyle = '#f6efe6'; ctx.beginPath(); ctx.moveTo(ROBOT.l / 2 + 1.5, -1.2); ctx.lineTo(ROBOT.l / 2 + 3, 0); ctx.lineTo(ROBOT.l / 2 + 1.5, 1.2); ctx.closePath(); ctx.fill();
+    if (up) { ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(robotFront(), 4.6, fx - robotFront(), 0.6); }
+    ctx.fillStyle = '#f6efe6'; ctx.beginPath(); ctx.moveTo(robotFront() - 2, -1.2); ctx.lineTo(robotFront() - 0.5, 0); ctx.lineTo(robotFront() - 2, 1.2); ctx.closePath(); ctx.fill();
     ctx.restore();
     if ($('showSensor').checked) {
       const [sx, sy] = sensorPos(s), col = colorAt(sx, sy);
@@ -731,9 +835,27 @@ if (typeof document !== 'undefined') (function () {
   });
   ['showTrail', 'showSensor'].forEach(id => $(id).addEventListener('change', draw));
 
-  // 시작 화면: M3 미션을 불러와 두어 '완성된 상태'로 보이게 함
-  program = PRESETS.m3.prog.map(c => ({ ...c })); $('start').value = 'A';
-  softReset(); renderSteps();
+  // ---------- 실측값 설정 ----------
+  const CFG_DEFAULT = { ...CFG };
+  const CFG_KEYS = Object.keys(CFG_DEFAULT);
+  function cfgToForm() { CFG_KEYS.forEach(k => { $('cfg-' + k).value = CFG[k]; }); }
+  function cfgFromForm() {
+    CFG_KEYS.forEach(k => { const v = parseFloat($('cfg-' + k).value); if (!isNaN(v)) CFG[k] = v; });
+    applyConfig();
+    try { localStorage.setItem('candy-sim-cfg', JSON.stringify(CFG)); } catch (e) { }
+    const cal = calibrateMission('A'); $('cfgNote').textContent = `바퀴 1회전 = ${wheelCirc()}cm · 시뮬레이터로 잰 거리: 입구→사탕 앞 ${cal.arc}cm, 사탕 쪽 전진 ${cal.reach}cm, 입구→A 박스 ${cal.home}cm`;
+    $('specLine').textContent = `미니 멀티로버 · 바퀴 지름 ${CFG.wheelDia}cm(1회전 ${wheelCirc()}cm) · 바퀴 간격 ${CFG.base}cm · 센서 앞 ${CFG.sensorOff}cm · 주행 E+F · 리프트 C · 컬러 A · 거리 B`;
+    softReset(); renderSteps();
+  }
+  try { const saved = JSON.parse(localStorage.getItem('candy-sim-cfg') || 'null'); if (saved) CFG_KEYS.forEach(k => { if (typeof saved[k] === 'number') CFG[k] = saved[k]; }); } catch (e) { }
+  cfgToForm(); 
+  $('cfgApply').addEventListener('click', cfgFromForm);
+  $('cfgDefault').addEventListener('click', () => { Object.assign(CFG, CFG_DEFAULT); cfgToForm(); cfgFromForm(); });
+
+  // 시작 화면: 설정 적용 후 M3 미션을 불러와 '완성된 상태'로 보이게 함
+  applyConfig();
+  program = PRESETS.m3().prog.map(c => ({ ...c })); $('start').value = 'A';
+  cfgFromForm();
 })();
 </script>
 

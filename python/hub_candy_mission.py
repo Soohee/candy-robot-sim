@@ -17,18 +17,21 @@ lift = Motor('C')
 color = ColorSensor('A')
 dist = DistanceSensor('B')
 
-pair.set_motor_rotation(17.5, 'cm')   # 바퀴 1회전 = 17.5cm
+# ---------- 로봇 실측값 (시뮬레이터 '로봇·매트 설정'과 같은 값) ----------
+WHEEL_CM = 17.5       # 바퀴 1회전 이동 거리(cm) = 지름 × 3.14  (지름 5.6cm → 17.5)
+pair.set_motor_rotation(WHEEL_CM, 'cm')
 pair.set_default_speed(25)
 
 LEFT, RIGHT = 1, -1   # 센서가 올라탈 라인 가장자리
 KP = 1.5              # 반사값 오차 → 조향값 비율 (라인을 자꾸 놓치면 키우고, 심하게 흔들리면 줄인다)
 SAFE_CM = 10          # 거리 센서로 이 거리 안에 무언가 보이면 정지 (보행자 안전)
 
-# ---------- 실측해서 고치는 값 ----------
+# ---------- 미션 거리값: 시뮬레이터 '설정 적용' 줄에 나오는 값으로 시작해 실제 매트에서 1~2cm씩 맞춘다 ----------
 ARC_TO_CANDY = 32     # 로터리 입구(빨간 표시) → 사탕 구역 앞까지 라인을 따라가는 거리(cm)
-REACH = 6             # 사탕 구역을 향해 돌아선 뒤, 리프트 바가 사탕을 지나도록 전진하는 거리(cm)
+REACH = 3             # 사탕 구역을 향해 돌아선 뒤, 사탕이 리프트 바와 몸체 사이에 오도록 전진하는 거리(cm)
+FIND_DIR = LEFT       # 돌아선 뒤 라인을 다시 찾을 때 도는 방향 (센서가 중심에서 벗어나 있으면 RIGHT가 될 수 있음)
+PATH_HOME = 113       # 로터리 입구 → 출발 박스 가운데까지 끌고 가는 거리(cm)
 LIFT_DEG = 300        # 리프트 바가 바닥 ↔ 위로 움직이는 모터 각도 (기어비에 맞춰 실측)
-PATH_HOME = 115       # 로터리 입구 → 출발 박스 앞까지 곡선 길 거리(cm)
 
 
 # ---------- 기본 동작 ----------
@@ -53,6 +56,14 @@ def wait_if_blocked():
             if d is None or d >= SAFE_CM:
                 break
         hub.light_matrix.show_image('ARROW_N')
+
+
+def turn_until_line(direction=LEFT):
+    """라인(검정)이 보일 때까지 제자리 회전 — 돌아선 뒤 센서를 라인 위로 되돌릴 때"""
+    pair.start(steering=100 * direction, speed=15)
+    while color.get_reflected_light() > 40:
+        pass
+    pair.stop()
 
 
 def follow_step(edge):
@@ -82,7 +93,7 @@ def follow_for_cm(cm, edge=LEFT):
     """정해진 거리(cm)만큼 라인 따라가기 — 모터 각도로 거리를 센다"""
     m = Motor('E')
     m.set_degrees_counted(0)
-    while abs(m.get_degrees_counted()) / 360 * 17.5 < cm:
+    while abs(m.get_degrees_counted()) / 360 * WHEEL_CM < cm:
         follow_step(edge)
     pair.stop()
 
@@ -111,9 +122,10 @@ def mission_candy_A():
     hub.light_matrix.show_image('HAPPY')
     pair.move(-REACH, 'cm', speed=20)              # 6. 사탕을 끌고 후진해서 라인으로 복귀
     turn(-90)                                      # 7. 돌아갈 방향(반시계)으로
-    follow_until_red(count=1, edge=RIGHT)          # 8. 오른쪽 가장자리 → 입구로 빠져나온다
-    follow_for_cm(PATH_HOME, edge=RIGHT)           # 9. 곡선 길을 따라 출발 박스까지 끌고 간다
-    lift_up()                                      # 10. 바를 올려 사탕을 놓는다
+    turn_until_line(FIND_DIR)                      # 8. 센서가 라인 위로 올 때까지 조금 더 돈다
+    follow_until_red(count=1, edge=RIGHT)          # 9. 오른쪽 가장자리 → 입구로 빠져나온다
+    follow_for_cm(PATH_HOME, edge=RIGHT)           # 10. 곡선 길을 따라 출발 박스까지 끌고 간다
+    lift_up()                                      # 11. 바를 올려 사탕을 놓는다
     hub.light_matrix.show_image('YES')
     hub.speaker.beep(96, 0.5)
 
